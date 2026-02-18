@@ -26,7 +26,7 @@ const client = new Client({
             '--single-process', // <- this one doesn't works in Windows
             '--disable-gpu'
         ],
-        // executablePath: '/usr/bin/google-chrome-stable' // Uncomment if using the Dockerfile we assigned
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
     }
 });
 

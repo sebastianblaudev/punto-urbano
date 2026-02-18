@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: punto-urbano-bot
+    env: docker
+    dockerContext: bot
+    plan: free
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: COBRANZA_NUMBER
+        sync: false
