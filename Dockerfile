@@ -16,13 +16,13 @@ RUN apt-get update \
 WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json
-COPY package*.json ./
+COPY bot/package*.json ./
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY . .
+COPY bot/ .
 
 # Set Puppeteer env
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
