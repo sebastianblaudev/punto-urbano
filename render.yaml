@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web
     name: punto-urbano-bot
     env: docker
     dockerContext: bot

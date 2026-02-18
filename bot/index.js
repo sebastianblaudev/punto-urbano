@@ -8,6 +8,19 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gxevfegraewgyuravnbp.s
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4ZXZmZWdyYWV3Z3l1cmF2bmJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzMzI1NzMsImV4cCI6MjA4NjkwODU3M30.ChQNooeJvbBZF4qOpOJtB92tfYszRJiRay8G_W0nnhI';
 const COBRANZA_NUMBER = process.env.COBRANZA_NUMBER || '56912345678'; // Replace with real number
 
+// Dummy server for Render Web Service (Free Tier)
+const http = require('http');
+const port = process.env.PORT || 3000;
+const server = http.createServer((req, res) => {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('WhatsApp Bot is running\n');
+});
+server.listen(port, () => {
+    console.log(`Server running at port ${port}`);
+});
+
+
 // Initialize Supabase
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
