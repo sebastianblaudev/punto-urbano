@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     LayoutDashboard,
@@ -46,11 +46,12 @@ import './App.css';
 import QuoteEngine from './components/QuoteEngine';
 import Calendar from './components/Calendar';
 import Payments from './components/Payments';
+import Login from './components/Login';
 import { supabase } from './supabaseClient';
 
 
 
-const Dashboard = () => {
+const Dashboard = ({ quotes, payments, events }) => {
     const [salesView, setSalesView] = useState('monthly');
     const [userView, setUserView] = useState('all');
     const [metrics, setMetrics] = useState({ totalSales: 0, logistics: 0, projects: 0 });
@@ -61,43 +62,48 @@ const Dashboard = () => {
     const [dateTo, setDateTo] = useState('2026-12-31');
 
     useEffect(() => {
-        fetchDashboardData();
-    }, [dateFrom, dateTo]);
+        calculateMetrics();
+    }, [quotes, payments, events, dateFrom, dateTo]);
 
-    const fetchDashboardData = async () => {
+    const calculateMetrics = () => {
         try {
-            // Fetch Quotes
-            const { data: quotes, error: quotesError } = await supabase
-                .from('quotes')
-                .select('*')
-                .gte('created_at', `${dateFrom}T00:00:00`)
-                .lte('created_at', `${dateTo}T23:59:59`);
+            // Filter Data by Date Range
+            const from = new Date(`${dateFrom}T00:00:00`);
+            const to = new Date(`${dateTo}T23:59:59`);
 
-            if (quotesError) throw quotesError;
+            const filteredQuotes = (quotes || []).filter(q => {
+                const d = new Date(q.created_at);
+                return d >= from && d <= to && q.status === 'Aceptada';
+            });
 
-            // Fetch Events count
-            const { count, error: eventsError } = await supabase
-                .from('events')
-                .select('*', { count: 'exact', head: true })
-                .gte('created_at', `${dateFrom}T00:00:00`)
-                .lte('created_at', `${dateTo}T23:59:59`);
+            const filteredPayments = (payments || []).filter(p => {
+                const d = new Date(p.created_at);
+                // Ensure legacy payments without created_at don't break, though they should have it from DB
+                return d >= from && d <= to;
+            });
 
-            if (eventsError) throw eventsError;
+            const filteredEvents = (events || []).filter(e => {
+                const d = new Date(e.created_at);
+                return d >= from && d <= to;
+            });
 
-            // Process Data
-            const acceptedQuotes = quotes; // aggregated all quotes for now, or filter by status 'Aceptada' if desired
+            // Metrics Calculation
+            const totalRevenue = filteredQuotes.reduce((acc, q) => acc + (Number(q.total) || 0), 0);
 
-            // Metrics
-            const totalSales = acceptedQuotes.reduce((acc, q) => acc + (Number(q.total) || 0), 0);
+            // Calculate Expenses (Only 'Pago' type counts as expense)
+            const totalExpenses = filteredPayments
+                .filter(p => p.tipo === 'Pago')
+                .reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
+
+            const netIncome = totalRevenue - totalExpenses;
 
             // Pie Chart Data (Category Breakdown)
             let catMobiliario = 0;
             let catLogistica = 0;
             let catOtros = 0;
 
-            acceptedQuotes.forEach(q => {
+            filteredQuotes.forEach(q => {
                 if (q.items) {
-                    // Safely access items as it is JSONB
                     const accessories = q.items.accesorios || [];
                     const logistics = q.items.logistica || [];
                     const others = q.items.otros || [];
@@ -109,9 +115,9 @@ const Dashboard = () => {
             });
 
             setMetrics({
-                totalSales,
+                totalSales: netIncome,
                 logistics: catLogistica,
-                projects: count || 0
+                projects: filteredEvents.length || 0
             });
 
             setPieChartData([
@@ -122,12 +128,11 @@ const Dashboard = () => {
 
             // Bar Chart Data (Group by Month)
             const months = {};
-            acceptedQuotes.forEach(q => {
-                const date = new Date(q.created_at); // using created_at for sales date
+            filteredQuotes.forEach(q => {
+                const date = new Date(q.created_at);
                 const monthKey = date.toLocaleString('es-CL', { month: 'short' });
-                // Note: simple grouping, could optimize to handle year overlap or sort properly
                 if (!months[monthKey]) months[monthKey] = 0;
-                months[monthKey] += (Number(q.total) || 0) / 1000000; // Convert to Millions
+                months[monthKey] += (Number(q.total) || 0) / 1000000;
             });
 
             const processedChartData = Object.keys(months).map(key => ({
@@ -135,12 +140,11 @@ const Dashboard = () => {
                 total: months[key]
             }));
 
-            // Initial sort by month index could be added here if needed, for now reliance on insertion order/rough sort
             setChartData(processedChartData);
             if (processedChartData.length > 0) setSelectedData(processedChartData[processedChartData.length - 1]);
 
         } catch (error) {
-            console.error('Error loading dashboard:', error);
+            console.error('Error calculating metrics:', error);
         }
     };
 
@@ -206,7 +210,7 @@ const Dashboard = () => {
                     </div>
                     <div className="card px-6 py-2 bg-blue-50 border-blue-100 flex flex-col transition-all duration-300">
                         <span className="text-[0.6rem] font-black uppercase tracking-widest text-blue-400">
-                            Ventas Totales
+                            Ganancias Totales
                         </span>
                         <div className="flex items-baseline gap-2">
                             <span className="text-xl font-black text-blue-600">
@@ -239,16 +243,16 @@ const Dashboard = () => {
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
                             {salesView === 'monthly' ? 'Ingresos Mensuales (Millones CLP)' : 'Ingresos Semanales (Millones CLP)'}
                         </h3>
-                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
                             <button
                                 onClick={() => setSalesView('monthly')}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${salesView === 'monthly' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-6 py-2 text-xs font-bold rounded-md transition-all ${salesView === 'monthly' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 Mensual
                             </button>
                             <button
                                 onClick={() => setSalesView('weekly')}
-                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${salesView === 'weekly' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-6 py-2 text-xs font-bold rounded-md transition-all ${salesView === 'weekly' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 Semanal
                             </button>
@@ -308,6 +312,100 @@ const Dashboard = () => {
 };
 
 
+
+const ClientModal = ({ isOpen, onClose, onSave, client, categories = [] }) => {
+    const [formData, setFormData] = useState({
+        name: '', contact: '', email: '', phone: '', type: 'Empresa', category: '', notes: ''
+    });
+
+    useEffect(() => {
+        if (client) {
+            setFormData(client);
+        } else {
+            setFormData({ name: '', contact: '', email: '', phone: '', type: 'Empresa', category: '', notes: '' });
+        }
+    }, [client, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave(formData);
+    };
+
+    return createPortal(
+        <div className="fixed inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 transition-all duration-300" style={{ zIndex: 9999999 }}>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden border border-slate-100"
+            >
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-slate-800">{client ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Empresa / Cliente</label>
+                        <input required type="text" className="w-full input-field" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Ej: Productora XYZ" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contacto</label>
+                            <input type="text" className="w-full input-field" value={formData.contact || ''} onChange={e => setFormData({ ...formData, contact: e.target.value })} placeholder="Ej: Juan Pérez" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                            <input type="text" className="w-full input-field" value={formData.phone || ''} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+569..." />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                        <input type="email" className="w-full input-field" value={formData.email || ''} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="contacto@empresa.com" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                            <select className="w-full input-field" value={formData.type || 'Empresa'} onChange={e => setFormData({ ...formData, type: e.target.value })}>
+                                <option value="Empresa">Empresa</option>
+                                <option value="Productora">Productora</option>
+                                <option value="Particular">Particular</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoría</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    list="client-categories"
+                                    className="w-full input-field"
+                                    value={formData.category || ''}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                    placeholder="Ej: VIP"
+                                />
+                                <datalist id="client-categories">
+                                    {categories.map((c, i) => (
+                                        <option key={i} value={c} />
+                                    ))}
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Notas</label>
+                        <textarea className="w-full input-field" rows="3" value={formData.notes || ''} onChange={e => setFormData({ ...formData, notes: e.target.value })} placeholder="Información adicional..."></textarea>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-lg">Cancelar</button>
+                        <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">Guardar</button>
+                    </div>
+                </form>
+            </motion.div>
+        </div>,
+        document.body
+    );
+};
+
 const Clients = () => {
     const [clients, setClients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -331,7 +429,8 @@ const Clients = () => {
             setClients(data || []);
         } catch (error) {
             console.error('Error fetching clients:', error);
-            alert('Error al cargar clientes');
+            console.log('Clients error details:', JSON.stringify(error, null, 2));
+            alert('Error al cargar clientes: ' + (error.message || 'Desconocido'));
         } finally {
             setIsLoading(false);
         }
@@ -341,6 +440,8 @@ const Clients = () => {
         (client.name && client.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (client.contact && client.contact.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    const uniqueCategories = [...new Set(clients.map(c => c.category))].filter(Boolean).sort();
 
     const handleAddNew = () => {
         setCurrentClient(null);
@@ -457,6 +558,7 @@ const Clients = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveClient}
                 client={currentClient}
+                categories={uniqueCategories}
             />
 
             <div className="flex justify-between items-end mb-10">
@@ -581,195 +683,101 @@ const Clients = () => {
 
 
 // --- Login Component ---
-const LoginScreen = ({ onLogin }) => {
-    const [rut, setRut] = useState('');
-    const [error, setError] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        // Simulate network delay for effect
-        setTimeout(() => {
-            if (rut === '761072625') {
-                onLogin();
-            } else {
-                setError(true);
-                setIsLoading(false);
-                setTimeout(() => setError(false), 2000);
-            }
-        }, 800);
-    };
-
-    return (
-        <div className="fixed inset-0 w-full h-full flex items-center justify-center bg-deep-space overflow-hidden font-['Outfit']">
-            {/* Dynamic Background Elements */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-                <div
-                    className="blob bg-blue-600 animate-pulse-slow"
-                    style={{ width: '500px', height: '500px', top: '-10%', left: '-10%' }}
-                />
-                <div
-                    className="blob bg-purple-600 animate-pulse-slow"
-                    style={{ width: '500px', height: '500px', bottom: '-10%', right: '-10%', animationDelay: '1s' }}
-                />
-            </div>
-
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.6, type: "spring", stiffness: 100 }}
-                className="relative z-10 w-full mx-4"
-                style={{ maxWidth: '400px' }}
-            >
-                {/* Glass Card */}
-                <div className="glass-card rounded-xl overflow-hidden text-white p-8">
-                    {/* Header Area */}
-                    <div className="text-center mb-10">
-                        <motion.div
-                            initial={{ y: -20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="flex items-center justify-center gap-3 mb-6"
-                        >
-                            <Sofa size={38} color="white" strokeWidth={2.5} />
-                            <div className="flex items-baseline">
-                                <span className="font-black text-white text-3xl tracking-tighter">PUNTO</span>
-                                <span className="font-light text-slate-300 text-3xl tracking-tighter">URBANO</span>
-                            </div>
-                        </motion.div>
-
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.4 }}
-                            className="mt-6 flex flex-col items-center"
-                        >
-                            <h2 className="text-4xl font-black text-white tracking-tighter mb-4">¡Hola Eric! 👋</h2>
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 border border-blue-500/30 rounded-full">
-                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                                <span className="text-[0.7rem] font-black text-blue-300 uppercase tracking-widest">Nuevos cambios aplicados</span>
-                            </div>
-                        </motion.div>
-                    </div>
-
-                    {/* Content Area */}
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                        <div className="flex flex-col gap-2 relative">
-                            <div className="flex justify-between items-baseline">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest" style={{ fontSize: '10px', marginLeft: '4px' }}>
-                                    Credenciales de Acceso
-                                </label>
-                            </div>
-                            <div className="relative group">
-                                <Lock
-                                    className={`absolute transition-colors ${error ? 'text-red-400' : 'text-slate-500'}`}
-                                    size={18}
-                                    style={{
-                                        zIndex: 10,
-                                        left: '1rem',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        position: 'absolute'
-                                    }}
-                                />
-                                <input
-                                    type="password"
-                                    inputMode="numeric"
-                                    value={rut}
-                                    onChange={(e) => setRut(e.target.value)}
-                                    placeholder="RUT Empresa"
-                                    className={`w-full input-premium rounded-xl py-4 pr-4 text-sm font-medium ${error ? 'border-red-500 text-red-100 placeholder-red-300' : ''}`}
-                                    style={{
-                                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                                        borderColor: error ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.1)',
-                                        paddingLeft: '3rem'
-                                    }}
-                                    autoFocus
-                                />
-                            </div>
-                            <p className="text-slate-400" style={{ fontSize: '13px', marginLeft: '4px', fontWeight: 500 }}>Ingresar sin guion y con dígito verificador.</p>
-                            <AnimatePresence>
-                                {error && (
-                                    <motion.p
-                                        initial={{ opacity: 0, y: -5 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0 }}
-                                        className="text-red-400 text-xs font-bold pl-1 absolute -bottom-6"
-                                    >
-                                        Acceso denegado. Verifique RUT.
-                                    </motion.p>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full btn-gradient py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
-                            style={{ marginTop: '1rem' }}
-                        >
-                            {isLoading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <span className="font-bold text-sm tracking-wide">Ingresar al Sistema</span>
-                                    <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
-                                </>
-                            )}
-                        </motion.button>
-                    </form>
-
-                    <div className="mt-8 flex items-center justify-center gap-3 opacity-30">
-                        <div className="h-[1px] w-12 bg-white"></div>
-                        <div className="h-1 w-1 rounded-full bg-white"></div>
-                        <div className="h-[1px] w-12 bg-white"></div>
-                    </div>
-                </div>
-            </motion.div>
-        </div>
-    );
-};
 
 // --- App Component ---
-function App() {
-    const [isAuthenticated, setIsAuthenticated] = useState(true);
+const App = () => {
     const [activeTab, setActiveTab] = useState('quotes');
-    const [isSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+    // Supabase Auth State
+    const [session, setSession] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState(null); // 'admin', 'user', etc.
 
-    // Global State for Integration
+    // Data State
     const [quotes, setQuotes] = useState([]);
-    const [events, setEvents] = useState([]);
+    const [events, setQuotesEvents] = useState([]);
     const [payments, setPayments] = useState([]);
+    const [inventory, setInventory] = useState([]);
+    const [clients, setClients] = useState([]);
 
-    // Fetch Initial Data
-    React.useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch Quotes
-                const { data: quotesData } = await supabase.from('quotes').select('*');
-                if (quotesData) setQuotes(quotesData);
+    useEffect(() => {
+        // checkpoint for session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setLoading(false);
+        }).catch((error) => {
+            console.error('Error getting session:', error);
+            setLoading(false);
+        });
 
-                // Fetch Events
-                const { data: eventsData } = await supabase.from('events').select('*');
-                if (eventsData) setEvents(eventsData);
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            setLoading(false); // Ensure loading is disabled on auth change too
+        });
 
-                // Fetch Payments
-                const { data: paymentsData } = await supabase.from('payments').select('*');
-                if (paymentsData) setPayments(paymentsData);
+        return () => subscription.unsubscribe();
+    }, []);
 
-            } catch (error) {
-                console.error('Error fetching data:', error);
+    const fetchData = async () => {
+        try {
+            const { data: quotesData } = await supabase.from('quotes').select('*');
+            if (quotesData) {
+                const mappedQuotes = quotesData.map(q => ({
+                    ...q,
+                    invoiceUrl: q.invoice_url,
+                    voucherUrl: q.voucher_url,
+                    paymentDate: q.payment_date || q.paymentDate,
+                    clientType: q.client_type || q.clientType,
+                    eventName: q.event_name || q.eventName,
+                    eventDate: q.event_date || q.eventDate,
+                    eventNotes: q.event_notes || q.eventNotes
+                }));
+                setQuotes(mappedQuotes);
             }
-        };
 
-        if (isAuthenticated) {
-            fetchData();
+            const { data: eventsData } = await supabase.from('events').select('*');
+            if (eventsData) setQuotesEvents(eventsData);
+
+            const { data: paymentsData } = await supabase.from('payments').select('*');
+            if (paymentsData) setPayments(paymentsData);
+
+            const { data: inventoryData } = await supabase.from('inventory').select('*');
+            if (inventoryData) setInventory(inventoryData);
+
+            const { data: clientsData } = await supabase.from('clients').select('*');
+            if (clientsData) setClients(clientsData);
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
         }
-    }, [isAuthenticated]);
+    };
+
+    useEffect(() => {
+        if (session) {
+            fetchData();
+
+            // Set up real-time subscription
+            const channel = supabase
+                .channel('db-changes')
+                .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+                    console.log('Change received!', payload);
+                    fetchData(); // Refresh all data on any change
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        }
+    }, [session]);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+    };
 
 
     const menuItems = [
@@ -782,8 +790,16 @@ function App() {
         { id: 'settings', label: 'Ajustes', icon: SettingsIcon },
     ];
 
-    if (!isAuthenticated) {
-        return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-100">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
+    if (!session) {
+        return <Login />;
     }
 
     return (
@@ -813,7 +829,10 @@ function App() {
                 </nav>
 
                 <div className="sidebar-footer">
-                    <button className="nav-item logout w-full opacity-60 hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={handleLogout}
+                        className="nav-item logout w-full opacity-60 hover:opacity-100 transition-opacity"
+                    >
                         <LogOut size={22} />
                         <span className="text-[0.95rem]">Cerrar Sesión</span>
                     </button>
@@ -833,7 +852,7 @@ function App() {
                         <div className="user-profile">
                             <div className="avatar">AD</div>
                             <div className="flex flex-col ml-1">
-                                <span className="text-sm font-bold leading-none">Administrador</span>
+                                <span className="text-sm font-bold leading-none">{session.user.email}</span>
                                 <span className="text-[0.7rem] text-slate-400 font-bold uppercase tracking-wider mt-1">Super User</span>
                             </div>
                         </div>
@@ -849,12 +868,12 @@ function App() {
                             exit={{ opacity: 0, y: -15 }}
                             transition={{ duration: 0.35, ease: 'easeOut' }}
                         >
-                            {activeTab === 'dashboard' && <Dashboard />}
+                            {activeTab === 'dashboard' && <Dashboard quotes={quotes} events={events} payments={payments} />}
                             {activeTab === 'clients' && <Clients />}
                             {activeTab === 'payments' && <Payments payments={payments} setPayments={setPayments} />}
                             {activeTab === 'services' && <Services />}
-                            {activeTab === 'quotes' && <QuoteEngine quotes={quotes} setQuotes={setQuotes} events={events} setEvents={setEvents} />}
-                            {activeTab === 'calendar' && <Calendar events={events} setEvents={setEvents} />}
+                            {activeTab === 'quotes' && <QuoteEngine quotes={quotes} setQuotes={setQuotes} events={events} setEvents={setQuotesEvents} />}
+                            {activeTab === 'calendar' && <Calendar events={events} setEvents={setQuotesEvents} />}
                             {activeTab === 'settings' && (
                                 <div className="max-w-2xl">
                                     <h1>Ajustes del Sistema</h1>

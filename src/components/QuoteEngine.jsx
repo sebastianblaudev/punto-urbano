@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Download, Truck, Plus, Eye, Trash2, ArrowRight, Check, ChevronDown, Search, Calendar, FileText, MessageCircle, Upload, DollarSign, Filter } from 'lucide-react';
+import { Download, Truck, Plus, Eye, Trash2, ArrowRight, Check, ChevronDown, Search, Calendar, FileText, MessageCircle, Upload, DollarSign, Filter, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const COBRANZA_PHONE = '56912345678'; // NÚMERO DE COBRANZA (DEFINIDO)
+
 
 const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
     const [view, setView] = useState('list');
@@ -38,6 +41,24 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
             const updatedQuotes = quotes.map(q => q.id === quoteId ? { ...q, status: newStatus } : q);
             setQuotes(updatedQuotes);
             if (newStatus === 'Aceptada') {
+                const quoteToApprove = quotes.find(q => q.id === quoteId);
+
+                if (quoteToApprove && quoteToApprove.eventDate) {
+                    const newEvent = {
+                        date: quoteToApprove.eventDate,
+                        title: quoteToApprove.eventNotes || `${quoteToApprove.eventName || 'Evento'} - ${quoteToApprove.client}`,
+                        type: 'note',
+                        description: `Evento: ${quoteToApprove.eventName || 'N/A'} - Cliente: ${quoteToApprove.client}`,
+                        time: '09:00 AM'
+                    };
+
+                    const { data: eventData, error: eventError } = await supabase.from('events').insert([newEvent]).select();
+
+                    if (!eventError && eventData) {
+                        setEvents([...events, ...eventData]);
+                    }
+                }
+
                 setShowToast(true);
                 setTimeout(() => setShowToast(false), 3000);
             }
@@ -292,15 +313,58 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
 
             {/* Document Upload / View Section (Mock UI) */}
             {showPrices && (
-                <div className="mt-8 border-t border-slate-200 pt-4 no-print">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Documentos Adjuntos</h4>
-                    <div className="flex gap-4">
-                        <button className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors">
-                            <Upload size={14} /> Subir Voucher
-                        </button>
-                        <button className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors">
-                            <Upload size={14} /> Subir Factura
-                        </button>
+                <div className="mt-8 border-t border-slate-200 pt-6 no-print">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Documentos Adjuntos</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* Voucher Card */}
+                        <div className={`border rounded-xl p-4 flex items-center justify-between transition-all ${quote.voucherUrl ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50 hover:border-blue-300'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${quote.voucherUrl ? 'bg-white text-emerald-600 shadow-sm' : 'bg-white text-slate-300'}`}>
+                                    <Upload size={20} />
+                                </div>
+                                <div>
+                                    <p className={`text-sm font-bold ${quote.voucherUrl ? 'text-emerald-900' : 'text-slate-500'}`}>Comprobante de Pago</p>
+                                    <p className="text-xs text-slate-400">{quote.voucherUrl ? 'Documento disponible' : 'Pendiente de carga'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {quote.voucherUrl && (
+                                    <a href={quote.voucherUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white text-emerald-600 hover:text-emerald-700 hover:shadow-md rounded-lg transition-all" title="Ver Documento">
+                                        <Eye size={18} />
+                                    </a>
+                                )}
+                                <label className={`flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 ${quote.voucherUrl ? 'text-slate-500 hover:text-emerald-600 hover:border-emerald-300' : 'text-blue-600 hover:bg-blue-50 hover:border-blue-300'} hover:shadow-md rounded-lg cursor-pointer transition-all`} title={quote.voucherUrl ? "Reemplazar Archivo" : "Subir Archivo"}>
+                                    <input type="file" style={{ display: "none" }} onChange={(e) => handleFileUpload(e, quote.id, 'voucher')} accept=".pdf,.png,.jpg,.jpeg" />
+                                    <Upload size={16} />
+                                    <span className="text-xs font-bold">{quote.voucherUrl ? 'Reemplazar' : 'Subir'}</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Invoice Card */}
+                        <div className={`border rounded-xl p-4 flex items-center justify-between transition-all ${quote.invoiceUrl ? 'border-blue-200 bg-blue-50/50' : 'border-slate-200 bg-slate-50 hover:border-blue-300'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${quote.invoiceUrl ? 'bg-white text-blue-600 shadow-sm' : 'bg-white text-slate-300'}`}>
+                                    <FileText size={20} />
+                                </div>
+                                <div>
+                                    <p className={`text-sm font-bold ${quote.invoiceUrl ? 'text-blue-900' : 'text-slate-500'}`}>Factura Tributaria</p>
+                                    <p className="text-xs text-slate-400">{quote.invoiceUrl ? 'Documento disponible' : 'Pendiente de carga'}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {quote.invoiceUrl && (
+                                    <a href={quote.invoiceUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-white text-blue-600 hover:text-blue-700 hover:shadow-md rounded-lg transition-all" title="Ver Documento">
+                                        <Eye size={18} />
+                                    </a>
+                                )}
+                                <label className={`flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 ${quote.invoiceUrl ? 'text-slate-500 hover:text-blue-600 hover:border-blue-300' : 'text-blue-600 hover:bg-blue-50 hover:border-blue-300'} hover:shadow-md rounded-lg cursor-pointer transition-all`} title={quote.invoiceUrl ? "Reemplazar Archivo" : "Subir Archivo"}>
+                                    <input type="file" style={{ display: "none" }} onChange={(e) => handleFileUpload(e, quote.id, 'invoice')} accept=".pdf,.png,.jpg,.jpeg" />
+                                    <Upload size={16} />
+                                    <span className="text-xs font-bold">{quote.invoiceUrl ? 'Reemplazar' : 'Subir'}</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -329,6 +393,7 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
             clientType: '', // Added clientType
             location: '',
             eventDate: '',
+            expirationDate: '', // FECHA DE CADUCIDAD
             eventName: '',
             eventNotes: '',
             items: {
@@ -422,8 +487,10 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                 event_date: newQuote.eventDate,
                 event_name: newQuote.eventName,
                 total: total,
+                total: total,
                 status: 'Borrador',
                 payment_date: null,
+                expiration_date: newQuote.expirationDate, // GUARDAR EN DB
                 items: newQuote.items,
                 timing: newQuote.timing
             };
@@ -441,28 +508,19 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                 const { error: quoteError } = await supabase.from('quotes').insert([quoteToSaveDB]);
                 if (quoteError) throw quoteError;
 
-                // Sync with Calendar if there is an eventDate
-                if (newQuote.eventDate) {
-                    const newEvent = {
-                        date: newQuote.eventDate,
-                        title: `${newQuote.eventName || 'Evento'} - ${newQuote.client}`,
-                        type: 'confirmed',
-                        description: newQuote.eventNotes || `Evento programado para ${newQuote.client}`,
-                        time: '09:00 AM' // Default time
-                    };
 
-                    const { data: eventData, error: eventError } = await supabase.from('events').insert([newEvent]).select();
-                    if (eventError) throw eventError;
-
-                    if (eventData) {
-                        setEvents([...events, ...eventData]);
-                    }
-                }
 
                 onSave(quoteToSaveLocal);
             } catch (error) {
                 console.error('Error saving quote:', error);
-                alert('Error al guardar cotización: ' + error.message);
+
+                if (error.message && (error.message.includes('JWT expired') || error.code === 'PGRST301')) {
+                    alert('Tu sesión ha expirado. Por favor, recarga la página e inicia sesión nuevamente.');
+                    // Optional: force logout if you have access to that function, or just reload
+                    window.location.reload();
+                } else {
+                    alert('Error al guardar cotización: ' + error.message);
+                }
             }
         };
 
@@ -490,7 +548,7 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                         />
                         {showSuggestions && (
                             <div
-                                className="absolute w-full left-0 top-full mt-2 rounded-xl shadow-2xl overflow-y-auto"
+                                className="absolute w-full left-0 top-full mt-2 rounded-xl shadow-2xl overflow-y-auto p-2"
                                 style={{
                                     backgroundColor: '#ffffff',
                                     background: '#ffffff',
@@ -504,7 +562,7 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                                     clientSuggestions.map((client, idx) => (
                                         <div
                                             key={idx}
-                                            className="px-5 py-4 hover:bg-blue-50 cursor-pointer flex flex-col border-b border-slate-50 last:border-none transition-colors"
+                                            className="px-5 py-3 hover:bg-blue-50 cursor-pointer flex flex-col border-b border-slate-50 last:border-none transition-colors rounded-lg mb-1 last:mb-0"
                                             onClick={() => selectClient(client)}
                                             style={{ backgroundColor: '#ffffff', background: '#ffffff' }}
                                         >
@@ -520,7 +578,10 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                     </div>
                     <InputField label="Nombre Evento" value={newQuote.eventName} onChange={(e) => setNewQuote({ ...newQuote, eventName: e.target.value })} placeholder="Ej: Lanzamiento Marca" />
                     <InputField label="Ubicación" value={newQuote.location} onChange={(e) => setNewQuote({ ...newQuote, location: e.target.value })} placeholder="Ej: Espacio Riesco" />
-                    <InputField label="Fecha Evento" type="date" value={newQuote.eventDate} onChange={(e) => setNewQuote({ ...newQuote, eventDate: e.target.value })} placeholder="Ej: 15 de Octubre" />
+                    <div className="grid grid-cols-2 gap-4">
+                        <InputField label="Fecha Evento" type="date" value={newQuote.eventDate} onChange={(e) => setNewQuote({ ...newQuote, eventDate: e.target.value })} placeholder="Ej: 15 de Octubre" />
+                        <InputField label="Fecha Caducidad" type="date" value={newQuote.expirationDate} onChange={(e) => setNewQuote({ ...newQuote, expirationDate: e.target.value })} placeholder="Vencimiento cotización" />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <InputField label="Montaje" value={newQuote.timing.montaje} onChange={(e) => setNewQuote({ ...newQuote, timing: { ...newQuote.timing, montaje: e.target.value } })} placeholder="Fecha/Hora" />
                         <InputField label="Desmontaje" value={newQuote.timing.desmontaje} onChange={(e) => setNewQuote({ ...newQuote, timing: { ...newQuote.timing, desmontaje: e.target.value } })} placeholder="Fecha/Hora" />
@@ -655,6 +716,86 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
         );
     };
 
+    // File Upload Handler
+    const handleFileUpload = async (e, quoteId, type) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            // 1. Upload to Supabase Storage
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${quoteId}/${type}_${Date.now()}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+                .from('quote_attachments')
+                .upload(fileName, file);
+
+            if (uploadError) throw uploadError;
+
+            // 2. Get Public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('quote_attachments')
+                .getPublicUrl(fileName);
+
+            // 3. Update Quote Record
+            const column = type === 'invoice' ? 'invoice_url' : 'voucher_url';
+            const { error: dbError } = await supabase
+                .from('quotes')
+                .update({ [column]: publicUrl })
+                .eq('id', quoteId);
+
+            if (dbError) throw dbError;
+
+            // 4. Update Local State
+            const updatedQuotes = quotes.map(q =>
+                q.id === quoteId ? { ...q, [type === 'invoice' ? 'invoiceUrl' : 'voucherUrl']: publicUrl } : q
+            );
+            setQuotes(updatedQuotes);
+
+            // Update selected quote if it's currently open
+            if (selectedQuote && selectedQuote.id === quoteId) {
+                setSelectedQuote({ ...selectedQuote, [type === 'invoice' ? 'invoiceUrl' : 'voucherUrl']: publicUrl });
+            }
+
+            alert(`${type === 'invoice' ? 'Factura' : 'Comprobante'} subido correctamente`);
+
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Error al subir archivo');
+        }
+    };
+
+    const handleCheckExpirations = () => {
+        const today = new Date().toISOString().split('T')[0];
+        const expiringQuotes = quotes.filter(q => {
+            const expDate = q.expiration_date || q.expirationDate;
+            // Filter logic: Expiration date is today or in the past, and not paid/rejected
+            // Also ensure it's not null
+            return expDate && expDate <= today && q.status !== 'Pagada' && q.status !== 'Rechazada' && q.status !== 'Cerrada';
+        });
+
+        if (expiringQuotes.length === 0) {
+            alert('No hay cotizaciones vencidas pendientes de pago.');
+            return;
+        }
+
+        let message = `*REPORTE DE COBRANZA - ${new Date().toLocaleDateString('es-CL')}*\n`;
+        message += `Se han detectado ${expiringQuotes.length} cotizaciones vencidas:\n\n`;
+
+        expiringQuotes.forEach((q, index) => {
+            message += `${index + 1}. *#${q.id}* - ${q.client}\n`;
+            message += `   Vence: ${q.expiration_date || q.expirationDate}\n`;
+            message += `   Monto: $${(q.total || 0).toLocaleString('es-CL')}\n`;
+            // Add link to PDF if available?
+            // if (q.invoiceUrl) message += `   Factura: ${q.invoiceUrl}\n`;
+            message += `\n`;
+        });
+
+        message += `Favor gestionar pago.`;
+
+        const url = `https://wa.me/${COBRANZA_PHONE}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -672,6 +813,14 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                         className="flex items-center gap-3 px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-500/30 transition-all border-none"
                     >
                         <Plus size={20} strokeWidth={3} /> <span className="text-base">Crear Cotización</span>
+                    </button>
+                )}
+                {view === 'list' && (
+                    <button
+                        onClick={() => handleCheckExpirations()}
+                        className="flex items-center gap-2 px-6 py-3 ml-2 bg-amber-100 text-amber-700 font-bold rounded-xl hover:bg-amber-200 transition-all border-none"
+                    >
+                        <Bell size={20} /> <span className="text-sm">Alertar Vencimientos</span>
                     </button>
                 )}
             </div>
@@ -701,7 +850,6 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                         exit={{ opacity: 0, scale: 0.98 }}
                         className="flex flex-col gap-6"
                     >
-                        {/* Filters Panel */}
                         {/* Filters Panel */}
                         <div className="flex flex-row gap-6 items-end px-2 mb-2">
                             <div className="flex-[2] min-w-[250px]">
@@ -745,6 +893,7 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                                         <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest w-[100px]">NÚMERO</th>
                                         <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">CLIENTE / EVENTO</th>
                                         <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest w-[150px]">FECHA PAGO</th>
+                                        <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest w-[100px]">VENCIMIENTO</th>
                                         <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest w-[120px]">TOTAL</th>
                                         <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest w-[140px]">ESTADO</th>
                                         <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest text-right w-[180px]">ACCIONES</th>
@@ -782,6 +931,9 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                                                     />
                                                 </div>
                                             </td>
+                                            <td className="py-6 px-8 text-xs font-bold text-slate-500">
+                                                {q.expiration_date || q.expirationDate || '-'}
+                                            </td>
                                             <td className="py-6 px-8 font-black text-slate-900">${Math.round(q.total * 1.19).toLocaleString()}</td>
 
                                             <td className="py-6 px-8" onClick={(e) => e.stopPropagation()}>
@@ -805,21 +957,55 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                                                 </div>
                                             </td>
                                             <td className="py-6 px-8 text-right" onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex justify-end gap-2">
-                                                    <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Subir Factura">
-                                                        <FileText size={16} />
-                                                    </button>
-                                                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Subir Voucher">
-                                                        <Upload size={16} />
-                                                    </button>
+                                                <div className="flex justify-end items-center gap-2">
+                                                    {/* Invoice Actions */}
+                                                    <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                                                        {q.invoiceUrl && (
+                                                            <a
+                                                                href={q.invoiceUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-1.5 text-blue-600 hover:bg-white rounded-md transition-all shadow-sm"
+                                                                title="Ver Factura"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <Eye size={14} />
+                                                            </a>
+                                                        )}
+                                                        <label className={`cursor-pointer p-1.5 rounded-md transition-all ${q.invoiceUrl ? 'text-slate-400 hover:text-blue-600 hover:bg-white' : 'text-slate-400 hover:text-blue-600 hover:bg-white'}`} title={q.invoiceUrl ? "Reemplazar Factura" : "Subir Factura"}>
+                                                            <input type="file" style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, q.id, 'invoice')} accept=".pdf,.png,.jpg,.jpeg" />
+                                                            {q.invoiceUrl ? <Upload size={14} /> : <FileText size={14} />}
+                                                        </label>
+                                                    </div>
+
+                                                    {/* Voucher Actions */}
+                                                    <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                                                        {q.voucherUrl && (
+                                                            <a
+                                                                href={q.voucherUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-1.5 text-emerald-600 hover:bg-white rounded-md transition-all shadow-sm"
+                                                                title="Ver Voucher"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <Eye size={14} />
+                                                            </a>
+                                                        )}
+                                                        <label className={`cursor-pointer p-1.5 rounded-md transition-all ${q.voucherUrl ? 'text-slate-400 hover:text-emerald-600 hover:bg-white' : 'text-slate-400 hover:text-emerald-600 hover:bg-white'}`} title={q.voucherUrl ? "Reemplazar Voucher" : "Subir Voucher"}>
+                                                            <input type="file" style={{ display: 'none' }} onChange={(e) => handleFileUpload(e, q.id, 'voucher')} accept=".pdf,.png,.jpg,.jpeg" />
+                                                            {q.voucherUrl ? <Upload size={14} /> : <Upload size={14} />}
+                                                        </label>
+                                                    </div>
+
                                                     <button
                                                         onClick={() => sendWhatsAppNotification(q)}
-                                                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors ml-2"
                                                         title="Notificar a Natalia"
                                                     >
                                                         <MessageCircle size={16} />
                                                     </button>
-                                                    <button className="flex items-center gap-2 px-5 py-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold text-xs transition-all whitespace-nowrap" onClick={() => { setSelectedQuote(q); setView('preview'); }} title="Vista Cliente"><Eye size={14} /> Ver</button>
+                                                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg font-bold text-xs transition-all whitespace-nowrap ml-2" onClick={() => { setSelectedQuote(q); setView('preview'); }} title="Vista Cliente"><Eye size={14} /> Ver</button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -874,7 +1060,19 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                             </div>
                         </div>
                         <div className="preview-paper-container shadow-2xl">
+                            {/* Pass handlers to RenderModel if needed, or implement UI there */}
                             <RenderPuntoUrbanoModel quote={selectedQuote} showPrices={view === 'preview'} />
+
+                            {/* Injecting Upload UI into the Preview (outside the paper or inside?) 
+                                 The original UI had it inside RenderPuntoUrbanoModel at the bottom (lines 294+).
+                                 We need to update RenderPuntoUrbanoModel definition above to include the logic or valid handlers.
+                                 Since RenderPuntoUrbanoModel is defined ABOVE, this replacement won't touch it.
+                                 I need to use MULTI-REPLACE or ensure I edit that section too.
+                                 Actually, I should have included RenderPuntoUrbanoModel in the replacement if I wanted to fix it there.
+                                 Wait, the replacement starts at handleFileUpload (new) and goes to end.
+                                 RenderPuntoUrbanoModel is BEFORE the QuoteEngine component? No, it's INSIDE QuoteEngine (line 198).
+                                 So I DO need to update RenderPuntoUrbanoModel.
+                             */}
                         </div>
                     </motion.div>
                 )}
@@ -882,6 +1080,7 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
         </motion.div>
     );
 };
+
 
 
 export default QuoteEngine;

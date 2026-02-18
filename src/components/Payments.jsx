@@ -11,16 +11,20 @@ const Payments = ({ payments, setPayments }) => {
         empresa: '',
         observacion: '',
         monto: '',
-        tipo: 'Pago'
+        tipo: 'Pago',
+        category: ''
     });
+
+    const uniqueCategories = [...new Set(payments.map(p => p.category))].filter(Boolean).sort();
 
     const handleOpenModal = (payment = null) => {
         if (payment) {
             setEditingPayment(payment);
             setFormData({ ...payment });
+            setFormData({ ...payment });
         } else {
             setEditingPayment(null);
-            setFormData({ empresa: '', observacion: '', monto: '', tipo: 'Pago' });
+            setFormData({ empresa: '', observacion: '', monto: '', tipo: 'Pago', category: '' });
         }
         setIsModalOpen(true);
     };
@@ -99,6 +103,7 @@ const Payments = ({ payments, setPayments }) => {
                     <thead>
                         <tr className="text-left bg-slate-50/50 border-b border-slate-100">
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">EMPRESA</th>
+                            <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">CATEGORÍA</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">OBSERVACIÓN</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">TIPO</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">MONTO</th>
@@ -109,6 +114,9 @@ const Payments = ({ payments, setPayments }) => {
                         {filteredPayments.map(p => (
                             <tr key={p.id} className="group border-b border-slate-50 last:border-0 hover:bg-slate-50/30 transition-all">
                                 <td className="py-6 px-8 font-bold text-slate-800">{p.empresa}</td>
+                                <td className="py-6 px-8">
+                                    <span className="px-2 py-1 rounded-md bg-slate-100 text-[0.65rem] font-bold text-slate-600 uppercase tracking-wider border border-slate-200">{p.category || '-'}</span>
+                                </td>
                                 <td className="py-6 px-8">
                                     <span className="text-xs text-slate-500 font-medium">{p.observacion}</span>
                                 </td>
@@ -157,6 +165,24 @@ const Payments = ({ payments, setPayments }) => {
                                         onChange={e => setFormData({ ...formData, empresa: e.target.value })}
                                         placeholder="Ej: Entel, Coca Cola..."
                                     />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="label-field">Categoría</label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            list="category-options"
+                                            className="input-field"
+                                            value={formData.category || ''}
+                                            onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                            placeholder="Ej: Servicios, Materiales..."
+                                        />
+                                        <datalist id="category-options">
+                                            {uniqueCategories.map((c, i) => (
+                                                <option key={i} value={c} />
+                                            ))}
+                                        </datalist>
+                                    </div>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
                                     <label className="label-field">Tipo</label>
