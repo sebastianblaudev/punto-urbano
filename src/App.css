@@ -13,9 +13,14 @@
   color: white;
   display: flex;
   flex-direction: column;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.sidebar.closed {
+  width: 85px;
 }
 
 .sidebar-header {
@@ -29,6 +34,16 @@
   font-weight: 700;
   font-size: 1.25rem;
   letter-spacing: -0.025em;
+  transition: all 0.3s ease;
+}
+
+.sidebar.closed .logo-text {
+  display: none;
+}
+
+.sidebar.closed .logo-box {
+  justify-content: center;
+  padding: 0;
 }
 
 
@@ -78,6 +93,20 @@
   background: #3b82f6;
   border-radius: 0 4px 4px 0;
   box-shadow: 4px 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.sidebar.closed .nav-item {
+  padding: 0.85rem;
+  justify-content: center;
+  gap: 0;
+}
+
+.sidebar.closed .nav-item span {
+  display: none;
+}
+
+.sidebar.closed .sidebar-footer .nav-item span {
+  display: none;
 }
 
 .sidebar-footer {
@@ -224,7 +253,7 @@ h1 {
   background: white;
   width: 210mm;
   min-height: 297mm;
-  padding: 25mm;
+  padding: 12mm 15mm;
   box-shadow: var(--shadow-premium), 0 0 100px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
   transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -237,14 +266,14 @@ h1 {
 .quote-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 3rem;
-  border-bottom: 3px solid #0f172a;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 0.75rem;
 }
 
 .client-data p {
-  font-size: 0.85rem;
-  margin-bottom: 0.4rem;
+  font-size: 0.7rem;
+  margin-bottom: 0.2rem;
   text-transform: uppercase;
   color: #475569;
 }
@@ -277,23 +306,23 @@ h1 {
 
 .quote-number {
   font-weight: 900;
-  font-size: 1.5rem;
-  margin-top: 1rem;
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
   color: #0f172a;
 }
 
 .quote-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 2.5rem;
-  border: 2px solid #94a3b8;
+  margin-bottom: 1.5rem;
+  border: 1px solid #94a3b8;
 }
 
 .quote-table th {
   background: #f1f5f9;
   border: 1px solid #94a3b8;
-  padding: 1rem;
-  font-size: 0.75rem;
+  padding: 0.5rem;
+  font-size: 0.65rem;
   font-weight: 800;
   text-align: center;
   color: #334155;
@@ -301,20 +330,18 @@ h1 {
 
 .quote-table td {
   border: 1px solid #94a3b8;
-  padding: 0.75rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
   color: #1e293b;
 }
 
 .category-row td {
-  background: #f8fafc;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: #0f172a;
-  padding-top: 1.25rem;
-  padding-bottom: 1.25rem;
-  font-size: 0.8rem;
+  letter-spacing: 1px;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .quote-footer {
@@ -326,11 +353,11 @@ h1 {
 
 .terms-yellow {
   background: #fef9c3;
-  padding: 2rem;
-  border: 2px solid #ca8a04;
+  padding: 1rem;
+  border: 1px solid #ca8a04;
   font-weight: 700;
-  font-size: 0.9rem;
-  line-height: 1.6;
+  font-size: 0.75rem;
+  line-height: 1.4;
   text-align: center;
   display: flex;
   align-items: center;
@@ -345,40 +372,40 @@ h1 {
 .total-row {
   display: flex;
   justify-content: space-between;
-  padding: 0.85rem 1.5rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid #94a3b8;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
 .grand-total {
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   background: #0f172a;
   color: white;
   border-bottom: none;
-  padding: 1.25rem 1.5rem;
+  padding: 0.75rem 1rem;
   font-weight: 800;
 }
 
 .banking-footer {
-  margin-top: 4rem;
-  border-top: 2px solid #f1f5f9;
-  padding-top: 2rem;
+  margin-top: 2rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.5rem;
 }
 
 .banking-footer h3 {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
   color: #0f172a;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   font-weight: 800;
 }
 
 .banking-footer p {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   color: #475569;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .logistics-footer {
@@ -413,3 +440,150 @@ h1 {
   gap: 0.5rem;
   justify-content: flex-end;
 }
+
+button.py-\[5px\].px-\[10px\].bg-slate-900.text-white.font-black.text-sm.rounded-xl.hover\:bg-blue-600.shadow-xl.shadow-slate-900\/10.hover\:shadow-blue-500\/30.transition-all.flex.items-center.justify-center.active\:scale-95.whitespace-nowrap.uppercase.tracking-\[0\.2em\] {
+  padding: 5px 20px;
+}
+
+/* Category Badge Colors Override */
+.badge-lounge {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #d1fae5 !important;
+}
+
+.badge-accesorios {
+  background-color: #fff7ed !important;
+  color: #ea580c !important;
+  border-color: #ffedd5 !important;
+}
+
+.badge-deco {
+  background-color: #f5f3ff !important;
+  color: #7c3aed !important;
+  border-color: #ede9fe !important;
+}
+
+.badge-extras {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  border-color: #dbeafe !important;
+}
+
+.badge-logistica {
+  background-color: #f0f9ff !important;
+  color: #0284c7 !important;
+  border-color: #e0f2fe !important;
+}
+
+/* Floating Action Button (FAB) */
+.fab-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.fab-main-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4);
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-main-btn:hover {
+  transform: scale(1.1) rotate(90deg);
+  background: #1e293b;
+}
+
+.fab-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.fab-option-btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 1rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.fab-option-btn.upcoming {
+  background: rgba(37, 99, 235, 0.9);
+  color: white;
+}
+
+.fab-option-btn.paid {
+  background: rgba(5, 150, 105, 0.9);
+  color: white;
+}
+
+.fab-option-btn.unpaid {
+  background: rgba(225, 29, 72, 0.9);
+  color: white;
+}
+
+.fab-option-btn:hover {
+  transform: translateX(-5px);
+  filter: brightness(1.1);
+}
+
+.fab-option-btn.active {
+  ring: 3px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Row Highlights */
+.row-highlight-upcoming {
+  background-color: rgba(239, 246, 255, 0.8) !important; /* blue-50 */
+}
+
+.row-highlight-paid {
+  background-color: rgba(236, 253, 245, 0.8) !important; /* emerald-50 */
+}
+
+.row-highlight-unpaid {
+  background-color: rgba(255, 241, 242, 0.8) !important; /* rose-50 */
+}
+
+/* Highlighting indicator on the left of the row */
+.highlighted-row {
+  position: relative;
+}
+
+.highlighted-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.row-highlight-upcoming::before { background: #3b82f6; }
+.row-highlight-paid::before { background: #10b981; }
+.row-highlight-unpaid::before { background: #f43f5e; }
