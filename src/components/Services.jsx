@@ -110,12 +110,28 @@ const Services = () => {
     };
 
     // Filter Logic
-    const filteredInventory = inventory.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.code.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
-        return matchesSearch && matchesCategory;
-    });
+    const filteredInventory = inventory
+        .filter(item => {
+            const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.code.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
+            return matchesSearch && matchesCategory;
+        })
+        .sort((a, b) => {
+            if (activeCategory === 'Todos') {
+                return a.name.localeCompare(b.name);
+            }
+            return 0; // Keep existing order (which is by created_at desc from fetchInventory)
+        });
+
+    const CATEGORY_COLORS = {
+        'Lounge': 'badge-lounge',
+        'Accesorios': 'badge-accesorios',
+        'Deco': 'badge-deco',
+        'Extras': 'badge-extras',
+        'Logística': 'badge-logistica',
+        'Todos': 'bg-slate-100 text-slate-600 border-slate-200'
+    };
 
     const categories = ['Todos', 'Lounge', 'Accesorios', 'Deco', 'Extras', 'Logística'];
 
@@ -143,18 +159,22 @@ const Services = () => {
             {/* Filters & Search */}
             <div className="mb-8 flex flex-col md:flex-row gap-6 justify-between items-center">
                 <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl">
-                    {categories.map(cat => (
-                        <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeCategory === cat
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
-                                }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
+                    {categories.map(cat => {
+                        const badgeClass = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Todos'];
+                        const activeClass = "bg-slate-900 text-white shadow-slate-200"; // Generic active state for all filter tabs
+                        return (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveCategory(cat)}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeCategory === cat
+                                    ? `${activeClass} shadow-lg scale-105`
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                                    }`}
+                            >
+                                {cat}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="relative w-full md:w-auto min-w-[300px] group">
@@ -189,13 +209,7 @@ const Services = () => {
                                     <span className="font-bold text-slate-700">{item.name}</span>
                                 </td>
                                 <td className="py-6 px-8">
-                                    <span className={`px-3 py-1 rounded-lg text-[0.65rem] font-black uppercase tracking-wide
-                                        ${item.category === 'Lounge' ? 'bg-purple-50 text-purple-600' :
-                                            item.category === 'Accesorios' ? 'bg-pink-50 text-pink-600' :
-                                                item.category === 'Deco' ? 'bg-amber-50 text-amber-600' :
-                                                    item.category === 'Extras' ? 'bg-cyan-50 text-cyan-600' :
-                                                        'bg-slate-100 text-slate-600'
-                                        }`}
+                                    <span className={`px-3 py-1 rounded-lg text-[0.65rem] font-black uppercase tracking-wide border shadow-sm ${CATEGORY_COLORS[item.category] || CATEGORY_COLORS['Todos']}`}
                                     >
                                         {item.category}
                                     </span>

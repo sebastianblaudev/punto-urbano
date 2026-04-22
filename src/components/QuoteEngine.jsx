@@ -1114,13 +1114,22 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
 
     const isDateInCurrentWeek = (dateStr) => {
         if (!dateStr) return false;
-        // Use a more robust date parsing for DD/MM/YYYY or YYYY-MM-DD
+        
+        // Remove day name prefix (e.g. "Sáb 05/03/2026")
+        const cleanStr = dateStr.replace(/^[A-ZáéíóúÁÉÍÓÚ][a-záéíóú]{2,3}\s+/i, '');
+        
         let normalizedDate;
-        if (dateStr.includes('/')) {
-            const [d, m, y] = dateStr.split(' ')[0].split('/');
-            normalizedDate = new Date(`${y}-${m}-${d}T12:00:00`);
+        if (cleanStr.includes('/')) {
+            const parts = cleanStr.split(' ')[0].split('/');
+            if (parts.length === 3) {
+                const [d, m, y] = parts;
+                normalizedDate = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T12:00:00`);
+            } else if (parts.length === 2) {
+                const [d, m] = parts;
+                normalizedDate = new Date(`${new Date().getFullYear()}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T12:00:00`);
+            }
         } else {
-            normalizedDate = new Date(dateStr.substring(0, 10) + 'T12:00:00');
+            normalizedDate = new Date(cleanStr.substring(0, 10) + 'T12:00:00');
         }
 
         if (isNaN(normalizedDate.getTime())) return false;
@@ -1129,20 +1138,30 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
         return normalizedDate >= start && normalizedDate <= end;
     };
 
-    const isDateInCurrentMonth = (dateStr) => {
+    const isDateInMonth = (dateStr, month, year) => {
         if (!dateStr) return false;
+        
+        // Remove day name prefix
+        const cleanStr = dateStr.replace(/^[A-ZáéíóúÁÉÍÓÚ][a-záéíóú]{2,3}\s+/i, '');
+        
         let normalizedDate;
-        if (dateStr.includes('/')) {
-            const [d, m, y] = dateStr.split(' ')[0].split('/');
-            normalizedDate = new Date(`${y}-${m}-${d}T12:00:00`);
+        if (cleanStr.includes('/')) {
+            const parts = cleanStr.split(' ')[0].split('/');
+            if (parts.length >= 2) {
+                const [d, m, y] = parts;
+                const fullYear = y || new Date().getFullYear();
+                normalizedDate = new Date(`${fullYear}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T12:00:00`);
+            }
         } else {
-            normalizedDate = new Date(dateStr.substring(0, 10) + 'T12:00:00');
+            normalizedDate = new Date(cleanStr.substring(0, 10) + 'T12:00:00');
         }
 
         if (isNaN(normalizedDate.getTime())) return false;
 
-        const now = new Date();
-        return normalizedDate.getMonth() === now.getMonth() && normalizedDate.getFullYear() === now.getFullYear();
+        const targetMonth = month ? parseInt(month) - 1 : new Date().getMonth();
+        const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+        return normalizedDate.getMonth() === targetMonth && normalizedDate.getFullYear() === targetYear;
     };
 
     const isUpcoming = (dateStr) => {
@@ -1168,10 +1187,10 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
         if (highlightMode === 'proximos' && isDateInCurrentWeek(dateStr)) {
             return 'row-highlight-upcoming highlighted-row';
         }
-        if (highlightMode === 'pagados' && q.paymentStatus === 'Pagada' && isDateInCurrentMonth(dateStr)) {
+        if (highlightMode === 'pagados' && q.paymentStatus === 'Pagada' && isDateInMonth(dateStr, mainFilterInput.month, mainFilterInput.year)) {
             return 'row-highlight-paid highlighted-row';
         }
-        if (highlightMode === 'impagos' && q.paymentStatus !== 'Pagada' && isDateInCurrentMonth(dateStr)) {
+        if (highlightMode === 'impagos' && q.paymentStatus !== 'Pagada' && isDateInMonth(dateStr, mainFilterInput.month, mainFilterInput.year)) {
             return 'row-highlight-unpaid highlighted-row';
         }
         return '';
@@ -1464,12 +1483,12 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
         let matchesHighlight = true;
         if (highlightMode === 'impagos') {
             const isUnpaid = q.paymentStatus !== 'Pagada';
-            const isThisMonth = isDateInCurrentMonth(q.eventDate || q.event_date);
-            matchesHighlight = isUnpaid && isThisMonth;
+            const isMatchMonth = isDateInMonth(q.eventDate || q.event_date, mainFilterInput.month, mainFilterInput.year);
+            matchesHighlight = isUnpaid && isMatchMonth;
         } else if (highlightMode === 'pagados') {
             const isPaid = q.paymentStatus === 'Pagada';
-            const isThisMonth = isDateInCurrentMonth(q.eventDate || q.event_date);
-            matchesHighlight = isPaid && isThisMonth;
+            const isMatchMonth = isDateInMonth(q.eventDate || q.event_date, mainFilterInput.month, mainFilterInput.year);
+            matchesHighlight = isPaid && isMatchMonth;
         } else if (highlightMode === 'proximos') {
             matchesHighlight = isDateInCurrentWeek(q.eventDate || q.event_date);
         }
@@ -2348,6 +2367,30 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
                                 exit={{ opacity: 0, y: 20, scale: 0.8 }}
                                 className="fab-options"
                             >
+                                <div className="bg-white p-4 rounded-2xl shadow-premium border border-slate-200 mb-2 flex flex-col gap-3 min-w-[200px]">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-2">Periodo del Filtro</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <select
+                                            value={mainFilterInput.month}
+                                            onChange={(e) => handleFilterChange(e, 'month')}
+                                            className="bg-slate-100 border-none rounded-lg p-2 text-xs font-bold text-slate-700 outline-none hover:bg-slate-200 transition-all"
+                                        >
+                                            <option value="">Todos</option>
+                                            {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(m => (
+                                                <option key={m} value={m}>{new Date(2024, parseInt(m) - 1).toLocaleString('es-ES', { month: 'long' })}</option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={mainFilterInput.year}
+                                            onChange={(e) => handleFilterChange(e, 'year')}
+                                            className="bg-slate-100 border-none rounded-lg p-2 text-xs font-bold text-slate-700 outline-none hover:bg-slate-200 transition-all"
+                                        >
+                                            {['2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(y => (
+                                                <option key={y} value={y}>{y}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                                 <button
                                     onClick={() => setHighlightMode(highlightMode === 'impagos' ? null : 'impagos')}
                                     className={`fab-option-btn unpaid ${highlightMode === 'impagos' ? 'active' : ''}`}

@@ -12,7 +12,8 @@ const Payments = ({ payments, setPayments }) => {
         observacion: '',
         monto: '',
         tipo: 'Pago',
-        category: ''
+        category: '',
+        fecha: new Date().toISOString().split('T')[0]
     });
 
     const uniqueCategories = [...new Set(payments.map(p => p.category))].filter(Boolean).sort();
@@ -21,10 +22,9 @@ const Payments = ({ payments, setPayments }) => {
         if (payment) {
             setEditingPayment(payment);
             setFormData({ ...payment });
-            setFormData({ ...payment });
         } else {
             setEditingPayment(null);
-            setFormData({ empresa: '', observacion: '', monto: '', tipo: 'Pago', category: '' });
+            setFormData({ empresa: '', observacion: '', monto: '', tipo: 'Pago', category: '', fecha: new Date().toISOString().split('T')[0] });
         }
         setIsModalOpen(true);
     };
@@ -33,12 +33,14 @@ const Payments = ({ payments, setPayments }) => {
         if (!formData.empresa || !formData.monto) return;
 
         try {
+            const { id, created_at, ...updateData } = formData;
+
             if (editingPayment) {
-                const { error } = await supabase.from('payments').update(formData).eq('id', editingPayment.id);
+                const { error } = await supabase.from('payments').update(updateData).eq('id', editingPayment.id);
                 if (error) throw error;
-                setPayments(payments.map(p => p.id === editingPayment.id ? { ...formData, id: p.id } : p));
+                setPayments(payments.map(p => p.id === editingPayment.id ? { ...p, ...updateData } : p));
             } else {
-                const { data, error } = await supabase.from('payments').insert([formData]).select();
+                const { data, error } = await supabase.from('payments').insert([updateData]).select();
                 if (error) throw error;
                 if (data) setPayments([...payments, ...data]);
             }
@@ -62,10 +64,12 @@ const Payments = ({ payments, setPayments }) => {
         }
     };
 
-    const filteredPayments = payments.filter(p =>
-        p.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.observacion.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPayments = payments
+        .filter(p =>
+            p.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.observacion.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
     return (
         <div className="flex flex-col gap-8">
@@ -102,10 +106,11 @@ const Payments = ({ payments, setPayments }) => {
                 <table className="data-table w-full">
                     <thead>
                         <tr className="text-left bg-slate-50/50 border-b border-slate-100">
+                            <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">TIPO</th>
+                            <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">FECHA</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">EMPRESA</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">CATEGORÍA</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">OBSERVACIÓN</th>
-                            <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">TIPO</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">MONTO</th>
                             <th className="py-6 px-8 text-[0.65rem] font-black text-slate-400 uppercase tracking-widest text-right">ACCIONES</th>
                         </tr>
@@ -113,18 +118,21 @@ const Payments = ({ payments, setPayments }) => {
                     <tbody>
                         {filteredPayments.map(p => (
                             <tr key={p.id} className="group border-b border-slate-50 last:border-0 hover:bg-slate-50/30 transition-all">
+                                <td className="py-6 px-8">
+                                    <span className={`px-2 py-1 rounded text-[0.6rem] font-black uppercase tracking-widest ${p.tipo === 'Canje' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'
+                                        }`}>
+                                        {p.tipo}
+                                    </span>
+                                </td>
+                                <td className="py-6 px-8 text-xs font-medium text-slate-500">
+                                    {p.fecha ? new Date(p.fecha + "T12:00:00Z").toLocaleDateString() : '-'}
+                                </td>
                                 <td className="py-6 px-8 font-bold text-slate-800">{p.empresa}</td>
                                 <td className="py-6 px-8">
                                     <span className="px-2 py-1 rounded-md bg-slate-100 text-[0.65rem] font-bold text-slate-600 uppercase tracking-wider border border-slate-200">{p.category || '-'}</span>
                                 </td>
                                 <td className="py-6 px-8">
                                     <span className="text-xs text-slate-500 font-medium">{p.observacion}</span>
-                                </td>
-                                <td className="py-6 px-8">
-                                    <span className={`px-2 py-1 rounded text-[0.6rem] font-black uppercase tracking-widest ${p.tipo === 'Canje' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'
-                                        }`}>
-                                        {p.tipo}
-                                    </span>
                                 </td>
                                 <td className="py-6 px-8 font-black text-slate-900">${Number(p.monto).toLocaleString()}</td>
                                 <td className="py-6 px-8 text-right">
@@ -183,6 +191,16 @@ const Payments = ({ payments, setPayments }) => {
                                             ))}
                                         </datalist>
                                     </div>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="label-field">Fecha</label>
+                                    <input
+                                        type="date"
+                                        className="input-field"
+                                        value={formData.fecha || ''}
+                                        onChange={e => setFormData({ ...formData, fecha: e.target.value })}
+                                        required
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
                                     <label className="label-field">Tipo</label>

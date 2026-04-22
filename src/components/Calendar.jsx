@@ -98,6 +98,20 @@ const Calendar = ({ events, setEvents }) => {
         }
     };
 
+    const formatEventTitle = (evt) => {
+        if (!evt || !evt.title) return '';
+        // Flip old automatically generated events specifically based on their description footprint
+        if (evt.description && evt.description.startsWith('Evento: ') && evt.description.includes(' - Cliente: ')) {
+            const parts = evt.title.split(' - ');
+            if (parts.length >= 2) {
+                const firstPart = parts[0];
+                const restPart = parts.slice(1).join(' - ');
+                return `${restPart} - ${firstPart}`;
+            }
+        }
+        return evt.title;
+    };
+
     // --- Actions ---
 
     const openNewEventModal = (day) => {
@@ -314,9 +328,9 @@ const Calendar = ({ events, setEvents }) => {
                                     {dayEvents.slice(0, 4).map((evt, idx) => {
                                         const styles = getTypeStyles(evt.type, evt.date);
                                         return (
-                                            <div key={idx} className={`text-[0.6rem] font-bold px-2 py-1.5 rounded-lg border-l-2 truncate flex items-center gap-1.5 ${styles.bg} ${styles.text} ${styles.border} shadow-sm`}>
+                                            <div key={idx} className={`text-[0.6rem] font-bold px-2 py-1.5 rounded-lg border-l-2 truncate flex items-center gap-1.5 ${styles.bg} ${styles.text} ${styles.border} shadow-sm`} title={formatEventTitle(evt)}>
                                                 {/* <div className={`w-1.5 h-1.5 rounded-full ${styles.text.replace('text', 'bg')}`}></div> */}
-                                                {evt.title}
+                                                {formatEventTitle(evt)}
                                             </div>
                                         );
                                     })}
@@ -330,99 +344,163 @@ const Calendar = ({ events, setEvents }) => {
                 </div>
             </div>
 
-            {/* Event Details Drawer (Right Side) */}
+            {/* Event Details Popup */}
             <AnimatePresence>
                 {selectedDate && (
-                    <div className="modal-overlay" style={{ justifyContent: 'flex-end', padding: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)' }} onClick={() => setSelectedDate(null)}>
+                    <div className="modal-overlay overflow-y-auto px-6 py-12" onClick={() => setSelectedDate(null)}>
                         <motion.div
-                            initial={{ x: '100%', opacity: 0.5 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            exit={{ x: '100%', opacity: 0.5 }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            initial={{ scale: 0.98, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.98, opacity: 0, y: 10 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="h-full w-full max-w-md bg-white shadow-2xl overflow-hidden flex flex-col border-l border-white/20"
+                            className="bg-white w-full !max-w-[700px] rounded-[2.5rem] shadow-[0_48px_80px_-16px_rgba(0,0,0,0.12)] overflow-hidden mx-auto border border-slate-100"
+                            style={{ maxWidth: '700px' }}
                         >
-                            {/* Drawer Header */}
-                            <div className="relative bg-slate-900 px-8 py-8 overflow-hidden shrink-0">
-                                <div className="absolute top-0 right-0 p-6 opacity-5">
-                                    <CalendarIcon size={200} />
-                                </div>
+                            {/* Unified Header Section */}
+                            <div className="relative overflow-hidden bg-slate-900 group/header">
+                                {/* Abstract background patterns */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px] rounded-full -mr-32 -mt-32"></div>
+                                <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-600/10 blur-[80px] rounded-full -ml-24 -mb-24"></div>
 
-                                <button
-                                    onClick={() => setSelectedDate(null)}
-                                    className="absolute top-6 left-6 flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-xl transition-all active:scale-95 bg-white/5 border border-white/10 text-white group z-20"
-                                >
-                                    <ChevronLeft size={16} className="text-blue-400 group-hover:-translate-x-1 transition-transform" />
-                                    <span className="text-[0.6rem] font-black uppercase tracking-widest">Volver</span>
-                                </button>
+                                <div className="relative px-16 py-12 pb-10">
+                                    <div className="flex justify-between items-start mb-12">
+                                        <div className="flex gap-8 items-center">
+                                            <div className="text-center bg-white/10 backdrop-blur-md px-6 py-4 rounded-[2rem] border border-white/10 shadow-2xl">
+                                                <span className="block text-[0.65rem] font-black text-blue-400 uppercase tracking-[0.4em] mb-1">{formatDate(selectedDate.day).split(' ')[0]}</span>
+                                                <h2 className="text-6xl font-black text-white tracking-tighter tabular-nums leading-none">
+                                                    {selectedDate.day}
+                                                </h2>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-3xl font-black text-white tracking-tight uppercase mb-1">
+                                                    {monthNames[currentDate.getMonth()]}
+                                                </h3>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-slate-400 font-bold text-sm uppercase tracking-[0.3em]">{currentDate.getFullYear()}</span>
+                                                    <div className="w-1 h-1 rounded-full bg-slate-600"></div>
+                                                    <span className="text-blue-400 font-black text-xs uppercase tracking-widest">{selectedDate.events.length} ACTIVIDADES</span>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                <div className="mt-8 relative z-10">
-                                    <h2 className="text-4xl font-black text-white tracking-tight leading-none mb-2">{formatDate(selectedDate.day).split(' ')[1]}</h2>
-                                    <p className="text-blue-400 font-bold uppercase tracking-widest text-xs">
-                                        {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                                    </p>
-                                    <p className="text-slate-400 text-sm mt-4 font-medium flex items-center gap-2">
-                                        <AlignLeft size={16} />
-                                        {selectedDate.events.length} Eventos programados
-                                    </p>
+                                        <button
+                                            onClick={() => setSelectedDate(null)}
+                                            className="p-4 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-2xl transition-all text-white/40 hover:text-white border border-white/10 group-hover/header:rotate-90 duration-500"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
 
-                                    <button
-                                        onClick={() => { setSelectedDate(null); openNewEventModal(selectedDate.day); }}
-                                        className="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 transition-all active:scale-95"
-                                    >
-                                        <Plus size={18} strokeWidth={3} /> Agregar Evento
-                                    </button>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex -space-x-2">
+                                            {/* decorative dots representing events */}
+                                            {selectedDate.events.slice(0, 5).map((_, i) => (
+                                                <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[0.6rem] font-black text-slate-400">
+                                                    {i + 1}
+                                                </div>
+                                            ))}
+                                            {selectedDate.events.length > 5 && (
+                                                <div className="w-8 h-8 rounded-full border-2 border-slate-900 bg-blue-600 flex items-center justify-center text-[0.6rem] font-black text-white">
+                                                    +{selectedDate.events.length - 5}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            onClick={() => { setSelectedDate(null); openNewEventModal(selectedDate.day); }}
+                                            className="group/btn flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all active:scale-95 text-[0.7rem] uppercase tracking-[0.2em] shadow-xl shadow-blue-900/40 border-none"
+                                        >
+                                            <Plus size={18} strokeWidth={3} className="group-hover/btn:rotate-180 transition-transform duration-500" /> Nuevo Registro
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Drawer Content */}
-                            <div className="flex-1 overflow-y-auto bg-slate-50 p-6 space-y-4">
+                            {/* Main Content Area: Timeline Experience */}
+                            <div className="relative px-20 py-12 bg-white">
+                                {/* The Timeline Line */}
+                                {selectedDate.events.length > 1 && (
+                                    <div className="absolute left-[85px] top-[60px] bottom-[60px] w-0.5 bg-slate-100 hidden sm:block"></div>
+                                )}
+
                                 {selectedDate.events.length === 0 ? (
-                                    <div className="h-40 flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50">
-                                        <CalendarIcon size={48} strokeWidth={1} />
-                                        <span className="text-sm font-medium">No hay eventos para este día</span>
+                                    <div className="py-24 flex flex-col items-center justify-center text-slate-300">
+                                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+                                            <CalendarIcon size={32} strokeWidth={1.5} className="opacity-40" />
+                                        </div>
+                                        <p className="text-[0.7rem] font-black uppercase tracking-[0.4em] text-slate-400">Sin actividades agendadas</p>
                                     </div>
                                 ) : (
-                                    selectedDate.events.map((evt, idx) => {
-                                        const style = getTypeStyles(evt.type, evt.date);
-                                        return (
-                                            <motion.div
-                                                layoutId={evt.id}
-                                                key={evt.id}
-                                                className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow group"
-                                            >
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <div className={`px-2.5 py-1 rounded-lg text-[0.6rem] font-black uppercase tracking-widest flex items-center gap-1.5 ${style.bg} ${style.text}`}>
-                                                        {style.icon}
-                                                        {getTypeLabel(evt.type, evt.date)}
+                                    <div className="space-y-8 relative">
+                                        {selectedDate.events.sort((a, b) => a.time.localeCompare(b.time)).map((evt, idx) => {
+                                            const style = getTypeStyles(evt.type, evt.date);
+                                            return (
+                                                <motion.div
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: idx * 0.1 }}
+                                                    key={evt.id}
+                                                    className="relative flex gap-8 group"
+                                                >
+                                                    {/* Time & Marker Column */}
+                                                    <div className="flex flex-col items-center gap-3 pt-1 w-20 shrink-0">
+                                                        <span className="text-[0.65rem] font-black text-slate-400 tabular-nums uppercase tracking-widest">{evt.time}</span>
+                                                        <div className={`w-4 h-4 rounded-full border-4 border-white shadow-md z-10 transition-transform group-hover:scale-125 ${style.bg.replace('bg-', 'bg-').split(' ')[0]} ${style.text.replace('text-', 'bg-').split(' ')[0]}`}></div>
                                                     </div>
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                                        <button onClick={() => openEditEventModal(evt)} className="p-1.5 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit size={14} /></button>
-                                                        <button onClick={() => handleDeleteEvent(evt.id)} className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash size={14} /></button>
+
+                                                    {/* Event Card */}
+                                                    <div className="flex-1 bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm group-hover:shadow-xl group-hover:-translate-y-1 transition-all duration-300">
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className={`text-[0.55rem] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border ${style.bg} ${style.text} ${style.border}`}>
+                                                                    {getTypeLabel(evt.type, evt.date)}
+                                                                </span>
+                                                                {evt.type === 'completed' && (
+                                                                    <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">
+                                                                        <CheckCircle size={12} />
+                                                                        <span className="text-[0.5rem] font-black uppercase">Finalizado</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); openEditEventModal(evt); }}
+                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                                >
+                                                                    <Edit size={16} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteEvent(evt.id); }}
+                                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                                                >
+                                                                    <Trash size={16} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <h4 className="text-xl font-black text-slate-900 leading-tight mb-4 uppercase tracking-tight group-hover:text-blue-600 transition-colors">
+                                                            {formatEventTitle(evt)}
+                                                        </h4>
+
+                                                        {evt.description && (
+                                                            <div className="bg-slate-50/50 p-5 rounded-[1.5rem] text-[0.85rem] text-slate-500 font-medium leading-relaxed border border-dashed border-slate-200">
+                                                                {evt.description}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                </div>
-
-                                                <h3 className="font-bold text-slate-800 text-lg leading-tight mb-2">{evt.title}</h3>
-
-                                                <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mb-4">
-                                                    <span className="flex items-center gap-1"><Clock size={12} /> {evt.time}</span>
-                                                    {/* <span className="flex items-center gap-1"><MapPin size={12} /> Ubicación</span> */}
-                                                </div>
-
-                                                {evt.description && (
-                                                    <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-500 font-medium leading-relaxed border border-slate-100">
-                                                        {evt.description}
-                                                    </div>
-                                                )}
-                                            </motion.div>
-                                        );
-                                    })
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         </motion.div>
                     </div>
                 )}
             </AnimatePresence>
+
+
+
 
             {/* Create/Edit Modal */}
             <AnimatePresence>
