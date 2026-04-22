@@ -1493,8 +1493,14 @@ const QuoteEngine = ({ quotes, setQuotes, events, setEvents }) => {
             matchesHighlight = isDateInCurrentWeek(q.eventDate || q.event_date);
         }
 
+        // If highlightMode is active, it provides its own temporal filtering (month/week)
+        // so we only apply basic status/search filters plus the highlight check.
+        if (highlightMode) {
+            return matchesSearch && matchesStatus && matchesPaymentStatus && matchesHighlight;
+        }
+
         const matchesSearchValue = searchTerm.length > 0;
-        return matchesSearch && (matchesDate || matchesSearchValue) && matchesStatus && matchesPaymentStatus && matchesHighlight;
+        return matchesSearch && (matchesDate || matchesSearchValue) && matchesStatus && matchesPaymentStatus;
     }).sort((a, b) => {
         const getSortTime = (q) => {
             if (q.event_date) return new Date(q.event_date).getTime();
