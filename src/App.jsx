@@ -94,9 +94,14 @@ const Dashboard = ({ quotes, payments, events }) => {
     const [metrics, setMetrics] = useState({ totalRevenue: 0, totalExpenses: 0, netIncome: 0, logistics: 0, projects: 0 });
     const [chartData, setChartData] = useState([]);
     const [pieChartData, setPieChartData] = useState([]);
-    const [selectedData, setSelectedData] = useState(null);
-    const [dateFrom, setDateFrom] = useState('2026-01-01');
-    const [dateTo, setDateTo] = useState('2026-12-31');
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+    const [dateFrom, setDateFrom] = useState(`${new Date().getFullYear()}-01-01`);
+    const [dateTo, setDateTo] = useState(`${new Date().getFullYear()}-12-31`);
+
+    useEffect(() => {
+        setDateFrom(`${selectedYear}-01-01`);
+        setDateTo(`${selectedYear}-12-31`);
+    }, [selectedYear]);
 
     useEffect(() => {
         calculateMetrics();
@@ -241,7 +246,6 @@ const Dashboard = ({ quotes, payments, events }) => {
             })).sort((a, b) => a.monthIndex - b.monthIndex);
 
             setChartData(processedChartData);
-            if (processedChartData.length > 0) setSelectedData(processedChartData[0]);
 
         } catch (error) {
             console.error('Error calculating metrics:', error);
@@ -275,37 +279,21 @@ const Dashboard = ({ quotes, payments, events }) => {
                         {userView === 'eric' ? 'Vista: Eric' : 'Vista: Global'}
                     </button>
 
-                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-4 py-1.5 h-[46px] gap-2 text-slate-500 hover:border-blue-400 transition-all shadow-sm relative group no-print">
-                        <div className="bg-blue-50 p-1.5 rounded-lg mr-1">
+                    <div className="flex items-center bg-white border border-slate-200 rounded-xl px-4 py-1.5 h-[46px] gap-3 text-slate-500 hover:border-blue-400 transition-all shadow-sm no-print">
+                        <div className="bg-blue-50 p-1.5 rounded-lg">
                             <CalendarIcon size={14} className="text-blue-600" />
                         </div>
-
-                        <div className="flex items-center">
-                            <div className="relative flex flex-col items-start px-2 py-0.5 rounded-lg transition-colors cursor-pointer hover:bg-slate-50 overflow-hidden">
-                                <span className="text-[10px] font-black uppercase tracking-tighter text-blue-400/80 leading-tight">Desde</span>
-                                <span className="text-xs font-black text-slate-700 tracking-tight">{formatDateLabel(dateFrom)}</span>
-                                <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                    className="clean-date-input"
-                                />
-                            </div>
-
-                            <div className="flex flex-col items-center px-1">
-                                <ChevronRight size={10} className="text-slate-300" />
-                            </div>
-
-                            <div className="relative flex flex-col items-start px-2 py-0.5 rounded-lg transition-colors cursor-pointer hover:bg-slate-50 overflow-hidden">
-                                <span className="text-[10px] font-black uppercase tracking-tighter text-blue-400/80 leading-tight">Hasta</span>
-                                <span className="text-xs font-black text-slate-700 tracking-tight">{formatDateLabel(dateTo)}</span>
-                                <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                    className="clean-date-input"
-                                />
-                            </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-400/80 leading-tight">Año</span>
+                            <select 
+                                value={selectedYear}
+                                onChange={(e) => setSelectedYear(e.target.value)}
+                                className="bg-transparent border-none text-xs font-black text-slate-700 outline-none cursor-pointer p-0 m-0"
+                            >
+                                {['2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(y => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                     <div className="card px-6 py-2 bg-blue-50 border-blue-100 flex flex-col transition-all duration-300">
